@@ -1,0 +1,72 @@
+import asyncio
+import os
+import datetime
+
+from meross_iot.http_api import MerossHttpClient
+from meross_iot.manager import MerossManager
+
+EMAIL = os.environ.get('MEROSS_EMAIL') or "valet.had@gmail.com"
+PASSWORD = os.environ.get('MEROSS_PASSWORD') or ":qL4wrt1,6+R893#2G9."
+
+date = datetime.datetime.now()
+str(date)
+
+a = date.strftime("%M")
+
+
+async def main():
+    # Setup the HTTP client API from user-password
+    http_api_client = await MerossHttpClient.async_from_user_password(email=EMAIL, password=PASSWORD)
+
+    # Setup and start the device manager
+    manager = MerossManager(http_client=http_api_client)
+    await manager.async_init()
+
+    # Retrieve all the MSS210 devices that are registered on this account
+    await manager.async_device_discovery()
+    plugs = manager.find_devices(device_type="mss210")
+
+
+    # Turn it on channel 0
+    # Note that channel argument is optional for MSS210 as they only have one channel
+    dev = plugs[0]
+
+    # The first time we play with a device, we must update its status
+    await dev.async_update()
+
+    print(f"{dev.name} {dev.internal_id}")
+
+    x = "#BASE:2201204136540151809548e1e9881b4d"
+    y = 2
+    while y < 4:
+        if x == '#BASE:2201204136540151809548e1e9881b4d':
+            if a <= '15':
+                print(f"Turning on {dev.name}...")
+                await dev.async_turn_on(channel=0)
+            elif a <= '30':
+                print(f"Turing off {dev.name}")
+                await dev.async_turn_off(channel=0)
+            elif a <= '45':
+                print(f"Turning on {dev.name}...")
+                await dev.async_turn_on(channel=0)
+            elif a >= '00':
+                print(f"Turing off {dev.name}")
+                await dev.async_turn_off(channel=0)
+        else:
+            pass
+    else:
+        pass
+
+    # Close the manager and logout from http_api
+    manager.close()
+    await http_api_client.async_logout()
+
+
+if __name__ == '__main__':
+    # Windows and python 3.8 requires to set up a specific event_loop_policy.
+    #  On Linux and MacOSX this is not necessary.
+    if os.name == 'nt':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.close()
